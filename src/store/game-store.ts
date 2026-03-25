@@ -147,6 +147,7 @@ export const useGameStore = create<GameState>((set, get) => {
    */
   async function triggerAIMove() {
     const state = get();
+
     if (
       state.gameMode !== 'pve' ||
       state.gameStatus !== 'playing' ||
@@ -183,6 +184,7 @@ export const useGameStore = create<GameState>((set, get) => {
               winLine: result.winLine || null,
               moveHistory,
               board: (engine.getBoard() as any).cells,
+              isAIThinking: false, // 重置 AI 思考状态
             });
 
             // Week 7: 处理游戏结束时的用户成长系统
@@ -272,10 +274,15 @@ export const useGameStore = create<GameState>((set, get) => {
 
         // PVE模式：如果游戏未结束且轮到AI，触发AI落子
         const state = get();
+        const playerColor = state.playerFirst ? 'black' : 'white'; // 玩家执什么颜色
+        const currentPlayer = get().currentPlayer; // 当前轮到谁
+
+        // 如果当前玩家不是玩家，说明轮到AI了
         if (
           state.gameMode === 'pve' &&
           state.gameStatus === 'playing' &&
-          !state.isAIThinking
+          !state.isAIThinking &&
+          currentPlayer !== playerColor // 关键判断：当前不是玩家的回合
         ) {
           setTimeout(() => triggerAIMove(), 100);
         }

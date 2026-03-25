@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { useGameStore } from '../store/game-store';
-import { BoardStage, BoardLayer, PiecesLayer } from '../components/Board';
+import { BoardStage, BoardLayer, PiecesLayer, HighlightLayer } from '../components/Board/index';
 
 export default function GamePage() {
   const {
@@ -18,12 +18,12 @@ export default function GamePage() {
     makeMove,
   } = useGameStore();
 
-  // 组件挂载时自动开始游戏
+  // 组件挂载时自动开始游戏（仅当游戏尚未开始时）
   useEffect(() => {
-    if (gameStatus === 'idle') {
+    if (gameStatus === 'idle' && moveHistory.length === 0) {
       startGame();
     }
-  }, [gameStatus, startGame]);
+  }, []); // 只在组件挂载时执行一次
 
   // 处理落子
   const handleCellClick = (x: number, y: number) => {
@@ -65,13 +65,19 @@ export default function GamePage() {
 
       {/* 棋盘 */}
       <div className="bg-amber-200 p-4 rounded-lg shadow-2xl">
-        <BoardStage size={600} onCellClick={handleCellClick}>
+        <BoardStage size={600} onCellClick={handleCellClick} padding={600 / 30}>
           <BoardLayer size={600} padding={600 / 30} />
           <PiecesLayer
             pieces={pieces}
             cellSize={600 / 15}
             padding={600 / 30}
             lastMove={lastMove}
+          />
+          <HighlightLayer
+            size={600}
+            cellSize={600 / 15}
+            padding={600 / 30}
+            winLine={winLine}
           />
         </BoardStage>
       </div>
@@ -96,13 +102,6 @@ export default function GamePage() {
       <div className="mt-6 text-center text-amber-800">
         <p>总落子数: {moveHistory.length}</p>
       </div>
-
-      {/* 获胜连线高亮提示 */}
-      {winLine && winLine.length > 0 && (
-        <div className="mt-4 text-center text-green-700 font-semibold">
-          <p>获胜连线已高亮显示！</p>
-        </div>
-      )}
     </div>
   );
 }

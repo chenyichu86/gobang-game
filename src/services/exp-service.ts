@@ -3,7 +3,7 @@
  * Week 7: 用户成长系统
  */
 
-import { GameResult } from '../types/user';
+import type { GameResult } from '../types/user';
 import { MAX_EXP } from '../constants/levels';
 
 export class ExpService {

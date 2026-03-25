@@ -3,7 +3,7 @@
  * Week 7: 用户成长系统
  */
 
-import { Achievement, AchievementCondition, GameContext, AchievementProgress } from '../types/user';
+import type { Achievement, AchievementCondition, GameContext, AchievementProgress } from '../types/user';
 import { ACHIEVEMENTS } from '../constants/achievements';
 
 export class AchievementService {

@@ -3,7 +3,7 @@
  * Week 7: 用户成长系统
  */
 
-import { Level, LevelUpResult } from '../types/user';
+import type { Level, LevelUpResult } from '../types/user';
 import { MAX_LEVEL, MAX_EXP, getLevelThreshold, getNextLevelThreshold, getLevelInfo } from '../constants/levels';
 
 /**

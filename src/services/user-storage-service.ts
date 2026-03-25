@@ -3,7 +3,7 @@
  * Week 7: 用户成长系统
  */
 
-import { UserData, UserStats, DailyLoginInfo, UserSettings } from '../types/user';
+import type { UserData, UserStats, DailyLoginInfo, UserSettings } from '../types/user';
 
 const STORAGE_KEY = 'gobang_user_data';
 const CURRENT_VERSION = 1;

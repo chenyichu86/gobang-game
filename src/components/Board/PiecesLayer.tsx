@@ -3,7 +3,7 @@
  * Week 2 - WO 2.4
  */
 
-import { Layer, Circle } from 'react-konva';
+import { Layer, Circle, Group } from 'react-konva';
 
 interface Piece {
   x: number;
@@ -26,15 +26,18 @@ export function PiecesLayer({
 }: PiecesLayerProps) {
   const effectiveSize = cellSize;
 
+  // 计算格子间距（15条线，14个间隔）
+  const cellSpacing = cellSize;
+
   return (
     <Layer>
       {pieces.map((piece, index) => {
-        const x = padding + (piece.x * effectiveSize) / 14;
-        const y = padding + (piece.y * effectiveSize) / 14;
-        const radius = (effectiveSize / 14) * 0.4;
+        const x = padding + piece.x * cellSpacing;
+        const y = padding + piece.y * cellSpacing;
+        const radius = cellSpacing * 0.4;
 
         return (
-          <g key={`${piece.x}-${piece.y}-${index}`}>
+          <Group key={`${piece.x}-${piece.y}-${index}`}>
             {/* 棋子阴影 */}
             <Circle
               x={x + 2}
@@ -79,7 +82,7 @@ export function PiecesLayer({
                 fill="rgba(255, 0, 0, 0.3)"
               />
             )}
-          </g>
+          </Group>
         );
       })}
     </Layer>

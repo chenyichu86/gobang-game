@@ -3,7 +3,7 @@
  * Week 7: 用户成长系统
  */
 
-import { Achievement } from '../types/user';
+import type { Achievement } from '../types/user';
 
 /**
  * 成就定义列表

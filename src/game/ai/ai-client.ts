@@ -4,7 +4,7 @@
  * Week 3 - WO 2.3
  */
 
-import { wrap, Remote, releaseProxy } from 'comlink';
+import { wrap } from 'comlink';
 import type { BoardCell } from '../core/board';
 import type { Player, Position } from '../core/rules';
 
@@ -34,14 +34,20 @@ export interface AIClient {
 
 // Worker实例缓存
 let workerInstance: Worker | null = null;
-let workerProxy: Remote<AIWorkerInterface> | null = null;
+let workerProxy: any | null = null;
 
 /**
  * 创建AI Client
  */
 export async function createAIClient(aiType: AIType): Promise<AIClient> {
+  // 浏览器环境：暂时使用同步AI
+  // TODO: 切换回 Web Worker AI
+  if (typeof window !== 'undefined') {
+    return await createTestAIClient(aiType);
+  }
+
   // 在测试环境中，直接使用同步AI
-  if (typeof window === 'undefined' || process.env.NODE_ENV === 'test') {
+  if (process.env.NODE_ENV === 'test') {
     return await createTestAIClient(aiType);
   }
 
@@ -112,7 +118,7 @@ function createWorkerAIClient(aiType: AIType): AIClient {
   if (!workerInstance) {
     const workerPath = new URL('./ai.worker.ts', import.meta.url);
     workerInstance = new Worker(workerPath, { type: 'module' });
-    workerProxy = wrap<AIWorkerInterface>(workerInstance);
+    workerProxy = wrap(workerInstance);
   }
 
   const proxy = workerProxy!;
@@ -148,10 +154,7 @@ function createWorkerAIClient(aiType: AIType): AIClient {
 
     [Symbol.dispose]() {
       // 清理Worker（可选）
-      if (workerProxy) {
-        workerProxy[releaseProxy]();
-        workerProxy = null;
-      }
+      workerProxy = null;
       if (workerInstance) {
         workerInstance.terminate();
         workerInstance = null;
@@ -164,10 +167,7 @@ function createWorkerAIClient(aiType: AIType): AIClient {
  * 清理AI Worker资源
  */
 export function cleanupAIWorker(): void {
-  if (workerProxy) {
-    workerProxy[releaseProxy]();
-    workerProxy = null;
-  }
+  workerProxy = null;
   if (workerInstance) {
     workerInstance.terminate();
     workerInstance = null;

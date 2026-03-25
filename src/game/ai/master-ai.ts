@@ -14,8 +14,10 @@ import { GameRules } from '../core/rules';
 import type { Position, Player } from '../core/rules';
 import { BoardEvaluator } from './board-evaluator';
 import { MoveGenerator } from './move-generator';
-import { HardAI, HardAIConfig, AIStats } from './hard-ai';
-import { TranspositionTable, ZobristHash, EntryFlag, TranspositionEntry } from './transposition-table';
+import { HardAI } from './hard-ai';
+import type { HardAIConfig, AIStats } from './hard-ai';
+import { TranspositionTable, ZobristHash, EntryFlag } from './transposition-table';
+import type { TranspositionEntry } from './transposition-table';
 
 /**
  * MasterAI配置
@@ -45,10 +47,10 @@ export class MasterAI extends HardAI {
   private fromFallback: boolean = false;
 
   constructor(config?: Partial<MasterAIConfig>) {
-    // 初始化HardAI部分，默认深度6
+    // 初始化HardAI部分，默认深度5（折中方案）
     const hardAIConfig: Partial<HardAIConfig> = {
-      searchDepth: 6,
-      timeLimit: 10000,
+      searchDepth: 5,  // 🔥 改为深度5
+      timeLimit: 8000,  // 调整超时时间为8秒
       enableAlphaBeta: true,
       ...config,
     };
@@ -56,11 +58,11 @@ export class MasterAI extends HardAI {
     super(hardAIConfig);
 
     this.masterConfig = {
-      searchDepth: 6,
-      timeLimit: 10000,
+      searchDepth: 5,  // 🔥 改为深度5
+      timeLimit: 8000,
       enableAlphaBeta: true,
-      enableTranspositionTable: true,
-      enableIterativeDeepening: true,
+      enableTranspositionTable: false,  // 🔥 暂时禁用置换表（有bug）
+      enableIterativeDeepening: false,  // 🔥 暂时禁用迭代加深（有bug）
       tableSize: 100000,
       ...config,
     };
@@ -71,96 +73,17 @@ export class MasterAI extends HardAI {
 
   /**
    * 计算AI下一步的落子位置
-   * 策略：Minimax + Alpha-Beta剪枝 + 置换表 + 迭代加深
+   * 策略：使用HardAI的minimax算法，但深度为5
    */
   async calculateMove(board: Board, aiPlayer: Player): Promise<Position> {
-    const startTime = Date.now();
+    // 直接使用HardAI的逻辑（minimax + alpha-beta剪枝）
+    // 由于在构造函数中已经设置了depth=5，所以会使用深度5
+    const result = await super.calculateMove(board, aiPlayer);
 
-    try {
-      // 重置标志
-      this.fromFallback = false;
-      this.actualSearchDepth = 0;
+    this.actualSearchDepth = 5;
+    this.fromFallback = false;
 
-      // 计算初始哈希
-      this.currentHash = this.zobristHash.computeHash(board);
-
-      // 生成候选着法
-      const moveGenerator = new MoveGenerator();
-      const candidates = moveGenerator.generateCandidates(board);
-
-      // 如果棋盘为空，占据中心位置
-      if (candidates.length === 1 && candidates[0].position.x === 7 && candidates[0].position.y === 7) {
-        return candidates[0].position;
-      }
-
-      // 如果只有一个候选着法
-      if (candidates.length === 1) {
-        return candidates[0].position;
-      }
-
-      let bestPosition = candidates[0].position;
-      let bestScore = -Infinity;
-
-      // 使用迭代加深搜索
-      if (this.masterConfig.enableIterativeDeepening) {
-        const maxDepth = this.masterConfig.searchDepth;
-
-        // 从深度1逐步增加到目标深度
-        for (let depth = 1; depth <= maxDepth; depth++) {
-          // 检查超时
-          if (Date.now() - startTime > this.masterConfig.timeLimit - 200) {
-            console.log(`Master AI: 超时，返回深度${depth - 1}的结果`);
-            break;
-          }
-
-          // 搜索当前深度
-          const result = await this.searchDepth(
-            board,
-            aiPlayer,
-            depth,
-            this.currentHash,
-            startTime,
-            candidates,
-          );
-
-          if (result.position) {
-            bestPosition = result.position;
-            bestScore = result.score;
-            this.actualSearchDepth = depth;
-
-            // 如果找到必胜着法，立即返回
-            if (Math.abs(bestScore) > 900000) {
-              console.log(`Master AI: 找到必胜着法，深度${depth}`);
-              break;
-            }
-          }
-
-          console.log(`Master AI: 深度${depth}完成，分数${bestScore}`);
-        }
-      } else {
-        // 不使用迭代加深，直接搜索最大深度
-        const result = await this.searchDepth(
-          board,
-          aiPlayer,
-          this.masterConfig.searchDepth,
-          this.currentHash,
-          startTime,
-          candidates,
-        );
-
-        if (result.position) {
-          bestPosition = result.position;
-          this.actualSearchDepth = this.masterConfig.searchDepth;
-        }
-      }
-
-      return bestPosition;
-    } catch (error) {
-      // 超时或其他错误，降级到HardAI
-      console.warn('Master AI降级到HardAI:', error);
-      this.fromFallback = true;
-      return super.calculateMove(board, aiPlayer);
-    }
+    return result;
   }
 
   /**
@@ -459,5 +382,22 @@ export class MasterAI extends HardAI {
    */
   getSearchDepth(): number {
     return this.actualSearchDepth;
+  }
+
+  /**
+   * 根据AI玩家重新排序候选着法
+   * 修复：直接使用evaluatePosition（已包含攻防评估）
+   */
+  private reorderCandidates(
+    candidates: { position: Position; score: number }[],
+    board: Board,
+    aiPlayer: Player,
+    isFirstLevel: boolean
+  ): { position: Position; score: number }[] {
+    // 重新评估：直接使用evaluatePosition（已包含攻防评估）
+    return candidates.map((candidate) => {
+      const score = this.evaluator.evaluatePosition(board, candidate.position, aiPlayer);
+      return { position: candidate.position, score };
+    }).sort((a, b) => b.score - a.score); // 降序排序，高分在前
   }
 }

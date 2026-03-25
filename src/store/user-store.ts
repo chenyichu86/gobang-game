@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { UserData, GameResult, GameContext, Level, LevelUpResult, Achievement, UserStats } from '../types/user';
+import type { UserData, GameResult, GameContext, Level, LevelUpResult, Achievement, UserStats } from '../types/user';
 import { UserStorageService } from '../services/user-storage-service';
 import { ExpService } from '../services/exp-service';
 import { AchievementService } from '../services/achievement-service';

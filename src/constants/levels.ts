@@ -3,7 +3,7 @@
  * Week 7: 用户成长系统
  */
 
-import { Level } from '../types/user';
+import type { Level } from '../types/user';
 
 /**
  * 等级阈值配置

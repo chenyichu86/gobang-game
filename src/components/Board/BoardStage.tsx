@@ -10,9 +10,10 @@ interface BoardStageProps {
   size: number;
   onCellClick: (x: number, y: number) => void;
   children?: React.ReactNode;
+  padding?: number; // 添加 padding 参数
 }
 
-export function BoardStage({ size, onCellClick, children }: BoardStageProps) {
+export function BoardStage({ size, onCellClick, children, padding = 0 }: BoardStageProps) {
   const [stageSize, setStageSize] = useState(size);
 
   // 响应式计算舞台大小
@@ -42,9 +43,15 @@ export function BoardStage({ size, onCellClick, children }: BoardStageProps) {
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
 
-    // 转换为网格坐标
-    const gridX = Math.floor(pointerPos.x / cellSize);
-    const gridY = Math.floor(pointerPos.y / cellSize);
+    // 减去 padding 后转换为网格坐标
+    const adjustedX = pointerPos.x - padding;
+    const adjustedY = pointerPos.y - padding;
+
+    // 计算格子间距（15条线，14个间隔）
+    const cellSpacing = cellSize;
+
+    const gridX = Math.round(adjustedX / cellSpacing);
+    const gridY = Math.round(adjustedY / cellSpacing);
 
     if (gridX >= 0 && gridX < 15 && gridY >= 0 && gridY < 15) {
       onCellClick(gridX, gridY);
