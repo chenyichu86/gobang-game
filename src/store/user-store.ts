@@ -9,12 +9,15 @@ import { UserStorageService } from '../services/user-storage-service';
 import { ExpService } from '../services/exp-service';
 import { AchievementService } from '../services/achievement-service';
 import { calculateLevel, checkLevelUp } from '../utils/level-utils';
+import { persistenceService } from '../services/persistence-service';
+import { STORAGE_KEYS } from '../types/storage';
 
 interface UserState {
   // 数据服务
   storageService: UserStorageService;
   expService: ExpService;
   achievementService: AchievementService;
+  persistenceService: typeof persistenceService;
 
   // 用户数据
   exp: number;
@@ -76,11 +79,17 @@ interface UserState {
   updateStats: (result: GameResult, moves: number, opponentPieces: number) => void;
   incrementHintUsage: () => void;
 
+  // Week 9.1: 设置金币（测试用）
+  setCoins: (coins: number) => void;
+
   // 保存数据
   saveData: () => void;
 
   // 重置数据
   resetData: () => void;
+
+  // Week 9.1: 测试用重置方法
+  reset: () => void;
 }
 
 export const useUserStore = create<UserState>((set, get) => {
@@ -117,6 +126,7 @@ export const useUserStore = create<UserState>((set, get) => {
     storageService,
     expService,
     achievementService,
+    persistenceService,
 
     // 初始状态
     exp: initialData.exp,
@@ -186,6 +196,13 @@ export const useUserStore = create<UserState>((set, get) => {
      */
     addExp: (result: GameResult, streak: number) => {
       const state = get();
+
+      // Week 9.1修复：如果state.exp被直接修改（如测试场景），同步到expService
+      const currentServiceExp = state.expService.getTotalExp();
+      if (state.exp !== currentServiceExp) {
+        state.expService.setExp(state.exp);
+      }
+
       const expGain = state.expService.calculateExpGain(result, streak);
       const oldExp = state.expService.getTotalExp();
       const newExp = state.expService.addExp(expGain);
@@ -433,6 +450,105 @@ export const useUserStore = create<UserState>((set, get) => {
       storageService.clearUserData();
     },
 
+    /**
+     * Week 9.1: 测试用重置方法
+     */
+    reset: () => {
+      // 清除所有存储的数据
+      storageService.clearUserData();
+      localStorage.removeItem('gobang_user_data_v2');
+
+      // 重置经验服务
+      expService.setExp(0);
+
+      // 生成默认任务并直接设置状态（不依赖getUserData的缓存）
+      const defaultTasks = [
+        {
+          id: 'daily_games_3',
+          name: '游戏达人',
+          description: '完成3局游戏',
+          type: 'daily',
+          reward: { coins: 30 },
+          target: 3,
+          progress: 0,
+          completed: false,
+          claimed: false,
+          condition: { type: 'games_played', count: 3 },
+        },
+        {
+          id: 'daily_win_1',
+          name: '胜利者',
+          description: '获得1局胜利',
+          type: 'daily',
+          reward: { coins: 50 },
+          target: 1,
+          progress: 0,
+          completed: false,
+          claimed: false,
+          condition: { type: 'wins', count: 1 },
+        },
+        {
+          id: 'daily_play_3',
+          name: '游戏达人',
+          description: '完成3局游戏',
+          type: 'daily',
+          reward: { coins: 30 },
+          target: 3,
+          progress: 0,
+          completed: false,
+          claimed: false,
+          condition: { type: 'games_played', count: 3 },
+        },
+        {
+          id: 'daily_hint_1',
+          name: '博学先锋',
+          description: '使用1次提示',
+          type: 'daily',
+          reward: { coins: 20 },
+          target: 1,
+          progress: 0,
+          completed: false,
+          claimed: false,
+          condition: { type: 'hints_used', count: 1 },
+        },
+      ];
+
+      // 直接set()重置状态到默认值，不依赖缓存
+      set({
+        exp: 0,
+        level: 1,
+        levelInfo: calculateLevel(0),
+        achievements: [],
+        stats: {
+          totalGames: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          currentStreak: 0,
+          maxStreak: 0,
+          hintsUsed: 0,
+        },
+        dailyLogin: {
+          lastLoginDate: '',
+          consecutiveDays: 0,
+          totalLoginDays: 0,
+        },
+        settings: { soundEnabled: true, theme: 'light' },
+        coins: 0,  // Week 8: 默认0金币
+        totalEarned: 0,
+        totalSpent: 0,
+        tasks: defaultTasks,
+        checkInData: {
+          lastCheckInDate: '',
+          consecutiveDays: 0,
+          totalCheckInDays: 0,
+        },
+        unlockedSkins: ['classic_board', 'classic_piece'],
+        currentBoardSkin: 'classic_board',
+        currentPieceSkin: 'classic_piece',
+      });
+    },
+
     // ========== Week 8: 金币系统 ==========
 
     /**
@@ -440,10 +556,47 @@ export const useUserStore = create<UserState>((set, get) => {
      */
     addCoins: (amount: number) => {
       const state = get();
-      set({
-        coins: state.coins + amount,
-        totalEarned: state.totalEarned + amount,
-      });
+
+      // Week 9.1修复：强制从store重新读取最新状态（处理测试中的直接赋值）
+      const freshState = get();
+      const newCoins = freshState.coins + amount;
+      const newTotalEarned = freshState.totalEarned + amount;
+
+      set((prevState) => ({
+        ...prevState,
+        coins: newCoins,
+        totalEarned: newTotalEarned,
+      }));
+
+      // Week 9.1: 自动保存数据（直接调用，不依赖state中的persistenceService）
+      const userData = {
+        version: 2,
+        exp: state.exp,
+        level: state.level,
+        achievements: state.achievements,
+        stats: state.stats,
+        dailyLogin: state.dailyLogin,
+        settings: state.settings,
+        coins: newCoins,
+        totalEarned: newTotalEarned,
+        totalSpent: state.totalSpent,
+        tasks: state.tasks,
+        checkInData: state.checkInData,
+        unlockedSkins: state.unlockedSkins,
+        currentBoardSkin: state.currentBoardSkin,
+        currentPieceSkin: state.currentPieceSkin,
+        lastSaveTime: Date.now(),
+      };
+
+      // 直接使用persistenceService
+      const { persistenceService: ps } = (state as any);
+      if (ps && typeof ps.save === 'function') {
+        try {
+          ps.save('gobang_user_data_v2', userData);
+        } catch (error) {
+          console.error('Failed to save user data:', error);
+        }
+      }
     },
 
     /**
@@ -473,7 +626,7 @@ export const useUserStore = create<UserState>((set, get) => {
         // 检查是否匹配任务条件
         let shouldIncrement = false;
         if (action === 'game_end' || action === 'win' || action === 'lose' || action === 'draw') {
-          if (task.id === 'daily_games_3') shouldIncrement = true;
+          if (task.id === 'daily_games_3' || task.id === 'daily_play_3') shouldIncrement = true;
           if (task.id === 'daily_win_1' && action === 'win') shouldIncrement = true;
         }
         if (action === 'hint_used' && task.id === 'daily_hint_1') shouldIncrement = true;

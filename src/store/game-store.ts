@@ -11,6 +11,8 @@ import type { BoardCell } from '../game/types';
 import { createAIClient, type AIType } from '../game/ai/ai-client';
 import { useUserStore } from './user-store';
 import type { GameResult } from '../types/user';
+import { persistenceService } from '../services/persistence-service';
+import { STORAGE_KEYS } from '../types/storage';
 
 interface GameState {
   // 游戏状态
@@ -47,11 +49,15 @@ interface GameState {
   }>;
   undo: () => void;
   resetGame: () => void;
+  reset: () => void; // Week 9.1: 测试用重置方法
   setGameMode: (mode: GameMode) => void;
   setAIDifficulty: (difficulty: AIType) => void;
   setPlayerFirst: (first: boolean) => void;
   getHint: () => Promise<Position | null>;
   clearHint: () => void;
+
+  // Week 9.1: 游戏流程集成
+  endGameWithRewards: (result: GameResult) => GameResult;
 }
 
 export const useGameStore = create<GameState>((set, get) => {
@@ -377,6 +383,109 @@ export const useGameStore = create<GameState>((set, get) => {
         hintPosition: null,
         isShowingHint: false,
       });
+    },
+
+    // Week 9.1: 重置方法（用于测试）
+    reset: () => {
+      set({
+        gameStatus: 'idle',
+        currentPlayer: 'black',
+        gameMode: 'pvp',
+        winner: null,
+        winLine: null,
+        moveHistory: [],
+        board: null,
+        engine: null,
+        aiDifficulty: 'simple',
+        playerFirst: true,
+        isAIThinking: false,
+        hintPosition: null,
+        isShowingHint: false,
+        remainingHints: 3,
+      });
+    },
+
+    // Week 9.1: 游戏流程集成 - 带奖励的游戏结束
+    endGameWithRewards: (result: GameResult) => {
+      const state = get();
+      const userStore = useUserStore.getState();
+
+      // 1. 计算金币奖励
+      const coinGainMap: Record<GameResult, number> = {
+        win: 10,
+        lose: 2,
+        draw: 5,
+      };
+      const coinGain = coinGainMap[result];
+      userStore.addCoins(coinGain);
+
+      // 2. 更新任务进度
+      userStore.checkTaskProgress(result);
+      userStore.checkTaskProgress('game_end');
+
+      // 3. 计算经验值（原有逻辑）
+      const currentStreak = userStore.stats.currentStreak;
+      const levelUpResult = userStore.addExp(result, currentStreak);
+
+      // 4. 更新统计数据
+      userStore.updateStats(result, state.moveHistory.length, 0);
+
+      // 5. 构建游戏上下文用于成就检测
+      const context = {
+        result,
+        totalMoves: state.moveHistory.length,
+        opponentPieces: 0,
+        currentStreak: result === 'win' ? currentStreak + 1 : 0,
+        userStats: userStore.stats,
+      };
+
+      // 6. 检查游戏结束成就
+      userStore.checkAchievements(context);
+
+      // 7. 检查里程碑成就
+      userStore.checkMilestoneAchievements(context);
+
+      // 8. 设置游戏状态
+      if (result === 'draw') {
+        set({
+          gameStatus: 'draw',
+          winner: null,
+        });
+      } else if (result === 'win') {
+        set({
+          gameStatus: 'won',
+          winner: state.currentPlayer,
+        });
+      } else {
+        set({
+          gameStatus: 'won',
+          winner: state.currentPlayer === 'black' ? 'white' : 'black',
+        });
+      }
+
+      // 9. 自动保存数据（重新获取最新状态）
+      const updatedUserStore = useUserStore.getState();
+      const userData = {
+        version: 2,
+        exp: updatedUserStore.exp,
+        level: updatedUserStore.level,
+        achievements: updatedUserStore.achievements,
+        stats: updatedUserStore.stats,
+        dailyLogin: updatedUserStore.dailyLogin,
+        settings: updatedUserStore.settings,
+        coins: updatedUserStore.coins,
+        totalEarned: updatedUserStore.totalEarned,
+        totalSpent: updatedUserStore.totalSpent,
+        tasks: updatedUserStore.tasks,
+        checkInData: updatedUserStore.checkInData,
+        unlockedSkins: updatedUserStore.unlockedSkins,
+        currentBoardSkin: updatedUserStore.currentBoardSkin,
+        currentPieceSkin: updatedUserStore.currentPieceSkin,
+        lastSaveTime: Date.now(),
+      };
+      persistenceService.save(STORAGE_KEYS.USER_DATA, userData);
+
+      return result;
     },
   };
 });
