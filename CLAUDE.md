@@ -814,6 +814,10 @@ npm run test:coverage
 10. **Hint system** - Limited to 3 hints per day, must track usage
 11. **文档路径规范** - 必须使用规范的文档路径 (project/* 和 docs/*)
 12. **目录结构规范** - 严格遵循文档目录结构规范
+13. **🚨 开发工作区门禁限制** - 所有代码和文档的修改必须在 gobang-game 目录内进行
+    - ❌ **禁止**: 在 `C:\Users\cheny\Documents\五子棋\gobang-game` 文件夹外创建或修改任何文件
+    - ✅ **正确**: 所有开发工作在 `gobang-game/` 目录下完成
+    - **违反此门禁将导致任务被拒绝**
 
 ---
 
