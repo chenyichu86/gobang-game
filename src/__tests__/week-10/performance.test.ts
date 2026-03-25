@@ -8,83 +8,71 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AIClient } from '../../game/ai/ai-client';
+import { createAIClient } from '../../game/ai/ai-client';
 import { Board } from '../../game/core/board';
 import { useGameStore } from '../../store/game-store';
 
 describe('Week 10 - AI性能测试', () => {
   describe('TC-PERF-01: SimpleAI响应时间', () => {
-    it('SimpleAI响应时间应<10ms', async () => {
-      const aiClient = new AIClient();
+    it('SimpleAI响应时间应<10ms', { timeout: 10000 }, async () => {
+      const aiClient = await createAIClient();
       const board = new Board();
 
       const startTime = performance.now();
-      try {
-        await aiClient.calculateMove(board, 'black', 'simple');
-        const duration = performance.now() - startTime;
-        expect(duration).toBeLessThan(10);
-      } catch (e) {
-        // 如果AI未实现，测试通过
-        expect(true).toBe(true);
-      }
-    }, { timeout: 10000 });
+      await aiClient.calculateMove(board, 'black', 'simple');
+      const duration = performance.now() - startTime;
+
+      // 性能断言：响应时间应<10ms
+      expect(duration).toBeLessThan(10);
+    });
   });
 
   describe('TC-PERF-02: MediumAI响应时间', () => {
-    it('MediumAI响应时间应<50ms', async () => {
-      const aiClient = new AIClient();
+    it('MediumAI响应时间应<50ms', { timeout: 10000 }, async () => {
+      const aiClient = await createAIClient();
       const board = new Board();
 
       const startTime = performance.now();
-      try {
-        await aiClient.calculateMove(board, 'black', 'medium');
-        const duration = performance.now() - startTime;
-        expect(duration).toBeLessThan(50);
-      } catch (e) {
-        expect(true).toBe(true);
-      }
-    }, { timeout: 10000 });
+      await aiClient.calculateMove(board, 'black', 'medium');
+      const duration = performance.now() - startTime;
+
+      expect(duration).toBeLessThan(50);
+    });
   });
 
   describe('TC-PERF-03: HardAI响应时间（深度4）', () => {
-    it('HardAI响应时间应<3秒', async () => {
-      const aiClient = new AIClient();
+    it('HardAI响应时间应<3秒', { timeout: 10000 }, async () => {
+      const aiClient = await createAIClient();
       const board = new Board();
 
       // 放置一些棋子增加复杂度
-      board.placePiece({ x: 7, y: 7 }, 'black');
-      board.placePiece({ x: 7, y: 8 }, 'white');
+      board.setCell(7, 7, 'black');
+      board.setCell(7, 8, 'white');
 
       const startTime = performance.now();
-      try {
-        await aiClient.calculateMove(board, 'black', 'hard');
-        const duration = performance.now() - startTime;
-        expect(duration).toBeLessThan(3000);
-      } catch (e) {
-        expect(true).toBe(true);
-      }
-    }, { timeout: 10000 });
+      await aiClient.calculateMove(board, 'black', 'hard');
+      const duration = performance.now() - startTime;
+
+      expect(duration).toBeLessThan(3000);
+    });
   });
 
   describe('TC-PERF-04: MasterAI响应时间（深度6）', () => {
-    it('MasterAI响应时间应<10秒', async () => {
-      const aiClient = new AIClient();
+    it('MasterAI响应时间应<10秒', { timeout: 15000 }, async () => {
+      const aiClient = await createAIClient();
       const board = new Board();
 
       // 放置一些棋子
-      board.placePiece({ x: 7, y: 7 }, 'black');
-      board.placePiece({ x: 7, y: 8 }, 'white');
-      board.placePiece({ x: 8, y: 7 }, 'black');
+      board.setCell(7, 7, 'black');
+      board.setCell(7, 8, 'white');
+      board.setCell(8, 7, 'black');
 
       const startTime = performance.now();
-      try {
-        await aiClient.calculateMove(board, 'black', 'master');
-        const duration = performance.now() - startTime;
-        expect(duration).toBeLessThan(10000);
-      } catch (e) {
-        expect(true).toBe(true);
-      }
-    }, { timeout: 15000 });
+      await aiClient.calculateMove(board, 'black', 'master');
+      const duration = performance.now() - startTime;
+
+      expect(duration).toBeLessThan(10000);
+    });
   });
 });
 
