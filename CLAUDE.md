@@ -6,20 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **网页端五子棋游戏** - A web-based Gomoku (Five-in-a-Row) game built with React 19, TypeScript, and Canvas rendering.
 
-**Project Status**: Week 8 completed (金币+任务+商城系统 ✅ | Coin+Task+Shop System Complete)
-**Next Phase**: Week 9 - 数据持久化 + UI集成
+**Project Status**: Week 9 completed (数据持久化 + UI组件 ✅ | Data Persistence + UI Components Complete)
+**Next Phase**: Week 10-12 - 性能优化和发布
 
-**Progress**: 67% complete (8/12 weeks)
+**Progress**: 75% complete (9/12 weeks)
 **Phase 1 MVP**: 100% complete 🎉
 **Phase 2 AI**: 100% complete (Week 5-6 done, 里程碑M2达成) 🎉
-**Phase 3 用户成长**: 33% complete (Week 7 done) 🔄
+**Phase 3 用户成长**: 100% complete (Week 7-9 done) 🎉
+
+**Working Directory**: `C:\Users\cheny\Documents\五子棋\gobang-game`
 
 **Key Documentation**:
-- `../PRD.md` - 产品需求文档 (Product Requirements)
-- `../ARCHITECTURE.md` - 技术架构设计 (Technical Architecture)
-- `../PROJECT_STATUS.md` - 项目状态追踪唯一事实源 (Project Status - single source of truth)
-- `../docs/week-*-WO.md` - 工作对象定义 (Work Object definitions)
-- `../docs/week-*-PL.md` - 产品逻辑规范 (Product Logic specifications)
+- `project/PRD.md` - 产品需求文档 (Product Requirements)
+- `project/ARCHITECTURE.md` - 技术架构设计 (Technical Architecture)
+- `project/PROJECT_STATUS.md` - 项目状态追踪唯一事实源 (Project Status - single source of truth)
+- `docs/week-*-WO.md` - 工作对象定义 (Work Object definitions)
+- `docs/week-*-PL.md` - 产品逻辑规范 (Product Logic specifications)
+- `docs/week-*-test-report.md` - 测试报告 (Test Reports)
+- `docs/week-*-acceptance-report.md` - 验收报告 (Acceptance Reports)
 
 ---
 
@@ -607,11 +611,113 @@ The board is rendered in layers for performance optimization:
 
 ---
 
+## 📁 文档管理规范 (Documentation Management)
+
+### 目录结构规范
+
+**根目录**: `C:\Users\cheny\Documents\五子棋\gobang-game`
+
+```
+gobang-game/                    # 本地开发根目录
+├── docs/                        # Week 开发文档
+│   ├── week-1/                 # Week 1 文档 (WO, PL, 测试, 验收)
+│   ├── week-2/                 # Week 2 文档
+│   ├── ...
+│   ├── week-9/                 # Week 9 文档
+│   ├── TDD-CHECKLIST.md       # TDD 流程检核清单
+│   └── schedule-analysis.md   # 项目计划分析
+│
+├── project/                     # 项目级核心文档
+│   ├── ARCHITECTURE.md         # 技术架构设计 ⭐ 唯一事实源
+│   ├── PRD.md                  # 产品需求文档 ⭐ 唯一事实源
+│   ├── PROJECT_STATUS.md       # 项目状态追踪 ⭐ 唯一事实源
+│   ├── PROJECT_STATUS_WEEK4_BACKUP.md
+│   └── WEEK_3_TEST_REPORT.md
+│
+├── src/                         # 源代码目录
+├── tests/                       # E2E 测试
+├── CLAUDE.md                    # 本文件 (Claude Code 指导)
+└── README.md                    # 项目说明
+```
+
+### 文档类型说明
+
+**项目级核心文档** (`project/`):
+- **PRD.md**: 产品需求文档 - 功能定义和用户故事
+- **ARCHITECTURE.md**: 技术架构设计 - 技术选型和系统设计
+- **PROJECT_STATUS.md**: 项目状态追踪 - 进度、里程碑、测试统计
+
+**Week 开发文档** (`docs/`):
+- **WO**: Work Object - 工作对象定义
+- **PL**: Product Logic - 产品逻辑详细设计
+- **test-cases**: 测试用例设计
+- **test-report**: 测试报告
+- **acceptance-report**: 验收报告
+- **completion-report**: 完成报告
+
+### 文档引用规范
+
+**重要**: 以下文档路径在所有代码和注释中必须使用新路径：
+
+| 旧路径 (已废弃) | 新路径 (正确) |
+|-----------------|-------------|
+| `../PRD.md` | `project/PRD.md` |
+| `../ARCHITECTURE.md` | `project/ARCHITECTURE.md` |
+| `../PROJECT_STATUS.md` | `project/PROJECT_STATUS.md` |
+| `../docs/week-*-WO.md` | `docs/week-*-WO.md` |
+| `../docs/week-*-PL.md` | `docs/week-*-PL.md` |
+
+### 文档管理原则
+
+1. **唯一事实源原则**
+   - PRD.md 是产品需求的唯一事实源
+   - ARCHITECTURE.md 是技术架构的唯一事实源
+   - PROJECT_STATUS.md 是项目状态的唯一事实源
+
+2. **文档同步原则**
+   - 每个 Week 完成后更新 PROJECT_STATUS.md
+   - 每个决策后更新 ARCHITECTURE.md
+   - 每个需求变更后更新 PRD.md
+
+3. **文档命名规范**
+   - Week 文档: `week-N-{类型}.md` (例如: week-9-WO.md)
+   - 使用小写字母和连字符
+   - 描述性文件名
+
+4. **文档版本控制**
+   - 所有文档纳入 Git 版本控制
+   - 重要文档保留历史版本（如 PROJECT_STATUS_WEEK4_BACKUP.md）
+   - 文档更新与代码提交同步
+
+### 文档更新流程
+
+```
+开发阶段开始 → 创建 WO 和 PL 文档
+           ↓
+测试阶段完成 → 生成测试报告
+           ↓
+功能验收完成 → 生成验收报告
+           ↓
+Week 结束      → 更新 PROJECT_STATUS.md
+                → 更新 CLAUDE.md (Standard Procedure)
+```
+
+---
+
 ## Working with This Codebase
 
 ### Adding New Game Features
-1. Read `../PROJECT_STATUS.md` to understand current phase
-2. Check `../ARCHITECTURE.md` for technical decisions
+1. Read `project/PROJECT_STATUS.md` to understand current phase
+2. Check `project/ARCHITECTURE.md` for technical decisions
+3. Follow TDD process: Write tests first in `src/__tests__/`
+4. Implement logic in `src/game/core/` or `src/game/ai/`
+5. Update store in `src/store/game-store.ts` if needed
+6. Add UI components in `src/components/` or `src/pages/`
+7. **Never break frozen week tests** (Week 1-9: 414 tests)
+
+### Adding New Game Features
+1. Read `project/PROJECT_STATUS.md` to understand current phase
+2. Check `project/ARCHITECTURE.md` for technical decisions
 3. Follow TDD process: Write tests first in `src/__tests__/`
 4. Implement logic in `src/game/core/` or `src/game/ai/`
 5. Update store in `src/store/game-store.ts` if needed
@@ -660,7 +766,7 @@ npm run test:coverage
 
 ## Project Progress Tracking
 
-**Always check** `../PROJECT_STATUS.md` before starting work:
+**Always check** `project/PROJECT_STATUS.md` before starting work:
 - Current week and phase
 - Completed milestones
 - Test results and coverage
@@ -674,12 +780,12 @@ npm run test:coverage
 - Week 5: ✅ Hard AI (Minimax + Alpha-Beta剪枝) (41 tests)
 - Week 6: ✅ Master AI (深度6 + 置换表优化) (61 tests)
 - Week 7: ✅ User Growth System (经验值 + 等级 + 成就) (56 tests)
-- Week 8: ✅ Coin + Task + Shop System (31 tests) ⭐ **JUST COMPLETED**
-- Week 9: 数据持久化 + UI集成
-- Week 10-12: 优化和发布
+- Week 8: ✅ Coin + Task + Shop System (31 tests)
+- Week 9: ✅ Data Persistence + UI Components (33 tests) ⭐ **JUST COMPLETED**
+- Week 10-12: 性能优化和发布
 
-**Test Statistics** (as of Week 8 completion):
-- **Total tests**: 381 ✅ (100% passing)
+**Test Statistics** (as of Week 9 completion):
+- **Total tests**: 414 ✅ (100% passing)
 - **Week 1**: 13 tests (frozen)
 - **Week 2**: 70 tests (frozen)
 - **Week 3**: 41 tests (frozen)
@@ -688,23 +794,26 @@ npm run test:coverage
 - **Week 6**: 61 tests (frozen)
 - **Week 7**: 56 tests (frozen)
 - **Week 8**: 31 tests (frozen)
-- **Code coverage**: 91.5% ✅ (target >70%)
-- **Test execution time**: ~181s
+- **Week 9**: 33 tests (frozen)
+- **Code coverage**: 100% ✅ (target >70%)
+- **Test execution time**: ~179s
 
 ---
 
 ## Important Constraints
 
-1. **Preserve Week 1-7 tests** - These are frozen, never modify them (350 tests total)
+1. **Preserve Week 1-9 tests** - These are frozen, never modify them (414 tests total)
 2. **TDD is mandatory** - No test-after development
 3. **Agent role boundaries** - Devs don't touch tests, QA doesn't touch logic
 4. **Documentation first** - WO/PL documents must exist before coding
 5. **Feature freeze** - Accepted features cannot be broken
-6. **Status updates** - Always update PROJECT_STATUS.md after completing work
+6. **Status updates** - Always update project/PROJECT_STATUS.md after completing work
 7. **CLAUDE.md updates** - Update CLAUDE.md after each week freeze (standard procedure)
 8. **AI performance** - AI response times must stay under targets (SimpleAI <100ms, MediumAI <500ms, HardAI <5s)
 9. **User growth performance** - EXP calculation <50ms, Achievement detection <100ms
 10. **Hint system** - Limited to 3 hints per day, must track usage
+11. **文档路径规范** - 必须使用规范的文档路径 (project/* 和 docs/*)
+12. **目录结构规范** - 严格遵循文档目录结构规范
 
 ---
 
@@ -889,8 +998,8 @@ Week 6 is complete! Milestone M2 (功能完整) has been achieved with both Hard
 - Alternative: Could focus on additional AI improvements or UI enhancements
 
 Before starting Week 7+:
-- Review `../ARCHITECTURE.md` for full roadmap
-- Check `../PROJECT_STATUS.md` for current priorities
+- Review `project/ARCHITECTURE.md` for full roadmap
+- Check `project/PROJECT_STATUS.md` for current priorities
 - Consult with project stakeholders on next phase focus
 - Ensure all 294 frozen tests pass (Week 1-6)
 - Follow TDD: write tests first, then implement
