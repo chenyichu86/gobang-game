@@ -13,6 +13,7 @@ import { useUserStore } from './user-store';
 import type { GameResult } from '../types/user';
 import { persistenceService } from '../services/persistence-service';
 import { STORAGE_KEYS } from '../types/storage';
+import { GameRecorder } from '../game/recorder';
 
 interface GameState {
   // 游戏状态
@@ -33,6 +34,15 @@ interface GameState {
   hintPosition: Position | null;
   isShowingHint: boolean;
   remainingHints: number;
+
+  // 悔棋功能状态
+  currentUndoCount: number; // 当前玩家已使用悔棋次数 (deprecated, kept for compatibility)
+  maxUndoCount: number; // 每个玩家最大悔棋次数
+  player1UndoCount: number; // 玩家1（黑棋）已使用悔棋次数
+  player2UndoCount: number; // 玩家2（白棋）已使用悔棋次数
+
+  // 游戏记录
+  recorder: GameRecorder | null;
 
   // 引擎实例
   engine: GameEngine | null;
@@ -123,6 +133,12 @@ export const useGameStore = create<GameState>((set, get) => {
         console.log(`🏆 解锁了 ${allAchievements.length} 个成就!`);
         allAchievements.forEach(a => console.log(`  - ${a.icon} ${a.name}`));
       }
+
+      // 保存游戏记录
+      if (state.recorder) {
+        const savedRecord = state.recorder.saveGame(winner, totalMoves);
+        console.log(`📜 游戏记录已保存: ${savedRecord.id}`);
+      }
     }
   }
 
@@ -176,6 +192,12 @@ export const useGameStore = create<GameState>((set, get) => {
             const newStatus = result.gameStatus || 'playing';
             const winner = result.gameStatus === 'won' ? result.player : null;
             const moveHistory = engine.getMoveHistory();
+            const stateBeforeAIMove = get();
+
+            // 记录AI的移动
+            if (stateBeforeAIMove.recorder) {
+              stateBeforeAIMove.recorder.addMove(response.position, stateBeforeAIMove.currentPlayer);
+            }
 
             set({
               gameStatus: newStatus,
@@ -184,18 +206,17 @@ export const useGameStore = create<GameState>((set, get) => {
               winLine: result.winLine || null,
               moveHistory,
               board: (engine.getBoard() as any).cells,
-              isAIThinking: false, // 重置 AI 思考状态
             });
 
-            // Week 7: 处理游戏结束时的用户成长系统
-            handleGameEnd(previousStatus, newStatus, winner, moveHistory.length);
+            // AI移动时不调用handleGameEnd，避免重复处理
+            // 游戏结束会在makeMove中统一处理
           }
         }
       }
     } catch (error) {
       console.error('AI move failed:', error);
     } finally {
-      set({ isAIThinking: false });
+      set({ isAIThinking: false }); // 统一在这里重置AI思考状态
     }
   }
 
@@ -215,6 +236,11 @@ export const useGameStore = create<GameState>((set, get) => {
     hintPosition: null,
     isShowingHint: false,
     remainingHints: 3,
+    currentUndoCount: 0,
+    maxUndoCount: 3, // PvP每方3次，PvE不限
+    player1UndoCount: 0, // 玩家1（黑棋）悔棋次数
+    player2UndoCount: 0, // 玩家2（白棋）悔棋次数
+    recorder: null,
 
     // Actions
     startGame: () => {
@@ -223,6 +249,14 @@ export const useGameStore = create<GameState>((set, get) => {
 
       const state = get();
       const currentPlayer = state.playerFirst ? 'black' : 'white';
+
+      // 创建游戏记录器
+      const recorder = new GameRecorder();
+      recorder.initGame(
+        state.gameMode,
+        state.gameMode === 'pve' ? state.aiDifficulty : undefined,
+        state.playerFirst
+      );
 
       set({
         engine,
@@ -236,6 +270,10 @@ export const useGameStore = create<GameState>((set, get) => {
         hintPosition: null,
         isShowingHint: false,
         remainingHints: 3,
+        currentUndoCount: 0, // 重置悔棋次数
+        player1UndoCount: 0, // 重置玩家1悔棋次数
+        player2UndoCount: 0, // 重置玩家2悔棋次数
+        recorder,
       });
 
       // 如果AI先手，立即触发AI落子
@@ -257,6 +295,12 @@ export const useGameStore = create<GameState>((set, get) => {
         const newStatus = result.gameStatus || 'playing';
         const winner = result.gameStatus === 'won' ? result.player : null;
         const moveHistory = engine.getMoveHistory();
+        const stateBeforeMove = get();
+
+        // 记录落子（使用移动前的currentPlayer）
+        if (stateBeforeMove.recorder) {
+          stateBeforeMove.recorder.addMove(position, stateBeforeMove.currentPlayer);
+        }
 
         set({
           gameStatus: newStatus,
@@ -298,8 +342,42 @@ export const useGameStore = create<GameState>((set, get) => {
       const state = get();
       const movesToUndo = state.gameMode === 'pve' ? 2 : 1; // PVE模式撤销两步
 
+      // 检查PvP悔棋次数限制（玩家独立计数）
+      if (state.gameMode === 'pvp') {
+        // 如果当前是黑棋回合，说明白棋刚下完，白棋要悔棋
+        // 如果当前是白棋回合，说明黑棋刚下完，黑棋要悔棋
+        const currentPlayer = state.currentPlayer;
+        if (currentPlayer === 'black') {
+          // 白棋悔棋
+          if (state.player2UndoCount >= state.maxUndoCount) {
+            console.warn('白棋已达到最大悔棋次数');
+            return;
+          }
+        } else {
+          // 黑棋悔棋
+          if (state.player1UndoCount >= state.maxUndoCount) {
+            console.warn('黑棋已达到最大悔棋次数');
+            return;
+          }
+        }
+      }
+
       for (let i = 0; i < movesToUndo; i++) {
         engine.undo();
+      }
+
+      // 更新玩家悔棋计数
+      let newPlayer1UndoCount = state.player1UndoCount;
+      let newPlayer2UndoCount = state.player2UndoCount;
+      if (state.gameMode === 'pvp') {
+        const currentPlayerBeforeUndo = state.currentPlayer;
+        if (currentPlayerBeforeUndo === 'black') {
+          // 白棋悔棋
+          newPlayer2UndoCount++;
+        } else {
+          // 黑棋悔棋
+          newPlayer1UndoCount++;
+        }
       }
 
       set({
@@ -312,6 +390,9 @@ export const useGameStore = create<GameState>((set, get) => {
         isAIThinking: false,
         hintPosition: null, // 悔棋后清除提示
         isShowingHint: false,
+        currentUndoCount: state.gameMode === 'pvp' ? state.currentUndoCount + 1 : state.currentUndoCount,
+        player1UndoCount: newPlayer1UndoCount,
+        player2UndoCount: newPlayer2UndoCount,
       });
     },
 
@@ -328,6 +409,7 @@ export const useGameStore = create<GameState>((set, get) => {
         hintPosition: null,
         isShowingHint: false,
         remainingHints: 3,
+        currentUndoCount: 0, // 重置悔棋次数
       });
     },
 
@@ -357,8 +439,13 @@ export const useGameStore = create<GameState>((set, get) => {
       }
 
       try {
-        // 使用AI计算推荐位置
-        const aiClient = await createAIClient(state.aiDifficulty);
+        // 提示功能使用中等AI（快速响应）
+        // 对于困难/大师难度，提示也使用中等AI以避免等待太久
+        const hintDifficulty = state.aiDifficulty === 'hard' || state.aiDifficulty === 'master'
+          ? 'medium'
+          : state.aiDifficulty;
+
+        const aiClient = await createAIClient(hintDifficulty);
         const response = await aiClient.calculateMove({
           boardData: state.board!,
           player: state.currentPlayer,
@@ -430,7 +517,7 @@ export const useGameStore = create<GameState>((set, get) => {
       userStore.checkTaskProgress(result);
       userStore.checkTaskProgress('game_end');
 
-      // 3. 计算经验值（原有逻辑）
+      // 3. 计算经验值
       const currentStreak = userStore.stats.currentStreak;
       const levelUpResult = userStore.addExp(result, currentStreak);
 

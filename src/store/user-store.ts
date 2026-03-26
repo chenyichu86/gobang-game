@@ -82,6 +82,10 @@ interface UserState {
   // Week 9.1: 设置金币（测试用）
   setCoins: (coins: number) => void;
 
+  // Week 8: 金币系统
+  addCoins: (amount: number) => void;
+  spendCoins: (amount: number) => boolean;
+
   // 保存数据
   saveData: () => void;
 
@@ -661,7 +665,7 @@ export const useUserStore = create<UserState>((set, get) => {
       }
 
       // 发放奖励
-      addCoins(task.reward.coins);
+      get().addCoins(task.reward.coins);
       task.claimed = true;
 
       set({ tasks: [...state.tasks] });
@@ -708,7 +712,7 @@ export const useUserStore = create<UserState>((set, get) => {
       });
 
       // 添加金币
-      addCoins(totalReward);
+      get().addCoins(totalReward);
 
       return {
         success: true,
@@ -753,7 +757,7 @@ export const useUserStore = create<UserState>((set, get) => {
       }
 
       // 扣除金币
-      spendCoins(price);
+      get().spendCoins(price);
 
       // 解锁皮肤
       const newUnlockedSkins = [...state.unlockedSkins, skinId];
