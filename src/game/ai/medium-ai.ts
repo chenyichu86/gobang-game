@@ -5,6 +5,7 @@
 
 import { Board } from '../core/board';
 import type { Position, Player } from '../core/rules';
+import { OpeningStrategy } from './opening-strategy';
 
 // 棋型评分权重
 const SCORE = {
@@ -29,9 +30,9 @@ export class MediumAI {
       throw new Error('No empty positions available');
     }
 
-    // 1. 如果棋盘为空，占据天元
+    // 1. 如果棋盘为空，使用开局策略
     if (emptyPositions.length === 225) {
-      return { x: 7, y: 7 };
+      return OpeningStrategy.selectOpening();
     }
 
     // 2. 评分系统：对每个空位进行评分

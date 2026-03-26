@@ -28,10 +28,12 @@ export function HighlightLayer({
         <>
           {/* 连线 */}
           <Line
-            points={winLine.map((pos) => [
-              padding + pos.x * cellSpacing,
-              padding + pos.y * cellSpacing,
-            ])}
+            points={winLine
+              .map((pos) => [
+                padding + pos.x * cellSpacing,
+                padding + pos.y * cellSpacing,
+              ])
+              .flat()}
             stroke="#FF0000"
             strokeWidth={cellSpacing * 0.15}
             lineCap="round"

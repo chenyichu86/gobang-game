@@ -86,7 +86,10 @@ export class HardAI {
     for (const { position } of candidates) {
       // 检查超时
       if (Date.now() - this.startTime > this.config.timeLimit) {
-        console.warn('HardAI timeout, returning current best move');
+        // 只在开发模式下输出超时信息
+        if (import.meta.env.DEV) {
+          console.debug('HardAI timeout, returning current best move');
+        }
         return bestPosition;
       }
 

@@ -6,44 +6,40 @@
 import { describe, it, expect } from 'vitest';
 import { Board } from '../../core/board';
 import { SimpleAI } from '../simple-ai';
+import { OpeningStrategy } from '../opening-strategy';
 import type { Position } from '../../core/rules';
 
 describe('SimpleAI', () => {
-  // TC-084: 简单AI-空棋盘天元开局
-  it('应该在天元落子（棋盘为空）', () => {
+  // TC-084: 简单AI-空棋盘开局（使用开局策略）
+  it('应该使用开局策略落子（棋盘为空）', () => {
     const board = new Board(15);
     const ai = new SimpleAI();
     const move = ai.calculateMove(board, 'black');
 
-    expect(move).toEqual({ x: 7, y: 7 });
+    // 验证位置在棋盘内
+    expect(move.x).toBeGreaterThanOrEqual(0);
+    expect(move.x).toBeLessThan(15);
+    expect(move.y).toBeGreaterThanOrEqual(0);
+    expect(move.y).toBeLessThan(15);
+
+    // 验证是有效的开局位置
+    expect(OpeningStrategy.isOpeningPosition(move)).toBe(true);
   });
 
-  // TC-085: 简单AI-随机落子位置验证
-  it('应该随机落子（80%概率）', () => {
+  // TC-085: 简单AI-逻辑化落子验证
+  it('应该使用评分系统选择最佳位置', () => {
     const board = new Board(15);
-    // 放置5个棋子
-    board.setCell(7, 7, 'black');
-    board.setCell(7, 8, 'white');
-    board.setCell(6, 7, 'black');
+    // 创建一个活三威胁
+    board.setCell(7, 7, 'white');
     board.setCell(8, 7, 'white');
-    board.setCell(7, 6, 'black');
+    board.setCell(9, 7, 'white');
 
-    const moves: Position[] = [];
-    // 使用不同的AI实例来增加随机性
-    for (let i = 0; i < 100; i++) {
-      const ai = new SimpleAI(Math.random() * 10000 + i);
-      moves.push(ai.calculateMove(board, 'white'));
-    }
+    const ai = new SimpleAI();
+    const move = ai.calculateMove(board, 'black');
 
-    // 验证随机性：至少有10个不同位置（降低期望值，因为有邻居限制）
-    const uniqueMoves = new Set(moves.map((m) => `${m.x},${m.y}`));
-    expect(uniqueMoves.size).toBeGreaterThan(10);
-
-    // 验证位置有效性：所有位置应该是空位
-    moves.forEach((move) => {
-      expect(board.isValid(move.x, move.y)).toBe(true);
-      expect(board.isEmpty(move.x, move.y)).toBe(true);
-    });
+    // 验证AI选择了防守位置（活三的两端）
+    const isBlocking = (move.x === 6 && move.y === 7) || (move.x === 10 && move.y === 7);
+    expect(isBlocking).toBe(true);
   });
 
   // TC-086: 简单AI-防守活三检测

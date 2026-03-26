@@ -11,6 +11,7 @@
 import { Board } from '../core/board';
 import type { Position } from '../core/rules';
 import { BoardEvaluator } from './board-evaluator';
+import { OpeningStrategy } from './opening-strategy';
 
 /**
  * 带分数的着法
@@ -35,9 +36,10 @@ export class MoveGenerator {
   generateCandidates(board: Board): MoveWithScore[] {
     const emptyPositions = this.getEmptyPositions(board);
 
-    // 如果棋盘为空，返回中心位置
+    // 如果棋盘为空，使用开局策略
     if (emptyPositions.length === 0 || this.isBoardEmpty(board)) {
-      return [{ position: { x: 7, y: 7 }, score: 0 }];
+      const opening = OpeningStrategy.selectOpening();
+      return [{ position: opening, score: 0 }];
     }
 
     // 获取邻居位置

@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Board } from '../../core/board';
 import { MoveGenerator } from '../move-generator';
+import { OpeningStrategy } from '../opening-strategy';
 
 describe('MoveGenerator', () => {
   let generator: MoveGenerator;
@@ -15,13 +16,20 @@ describe('MoveGenerator', () => {
   });
 
   describe('候选着法生成测试', () => {
-    it('空棋盘应该返回中心位置', () => {
+    it('空棋盘应该返回开局策略位置', () => {
       const board = new Board(15);
       const candidates = generator.generateCandidates(board);
 
       expect(candidates.length).toBe(1);
-      expect(candidates[0].position.x).toBe(7);
-      expect(candidates[0].position.y).toBe(7);
+
+      // 验证位置在棋盘内
+      expect(candidates[0].position.x).toBeGreaterThanOrEqual(0);
+      expect(candidates[0].position.x).toBeLessThan(15);
+      expect(candidates[0].position.y).toBeGreaterThanOrEqual(0);
+      expect(candidates[0].position.y).toBeLessThan(15);
+
+      // 验证是有效的开局位置
+      expect(OpeningStrategy.isOpeningPosition(candidates[0].position)).toBe(true);
     });
 
     it('应该只返回有邻居的位置', () => {

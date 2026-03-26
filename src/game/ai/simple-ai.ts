@@ -1,47 +1,48 @@
 /**
- * SimpleAI类 - 简单AI（80%随机+20%基础防守）
- * Week 3 - WO 2.1
+ * SimpleAI类 - 简单AI（评分系统，适合初学者）
+ * Week 11优化 - 100%逻辑，0%随机
+ *
+ * 策略：
+ * - 使用简化的评分系统（参考MediumAI）
+ * - 1层搜索（只评估当前局面）
+ * - 进攻+防守综合考虑
+ * - 响应时间<20ms
  */
 
 import { Board } from '../core/board';
 import type { Position, Player } from '../core/rules';
+import { OpeningStrategy } from './opening-strategy';
+
+// 简化的棋型评分权重
+const SCORE = {
+  FIVE: 100000,      // 连五（必胜）
+  LIVE_FOUR: 10000,  // 活四（两端都空，必胜）
+  RUSH_FOUR: 5000,   // 冲四（一端被堵）
+  LIVE_THREE: 1000,  // 活三（两端都空）
+  SLEEP_THREE: 100,  // 眠三（一端被堵）
+  LIVE_TWO: 100,     // 活二（两端都空）
+  ONE: 10,           // 单子
+};
 
 export class SimpleAI {
-  private seed: number;
-
-  constructor(seed: number = Math.random()) {
-    this.seed = seed;
-  }
-
   /**
    * 计算AI下一步的落子位置
-   * 策略：80%随机落子 + 20%基础防守（堵截对方活三）
+   * 策略：评分系统 + 开局策略
    */
-  calculateMove(board: Board, player: Player, customSeed?: number): Position {
+  calculateMove(board: Board, player: Player): Position {
     const emptyPositions = this.getEmptyPositions(board);
 
     if (emptyPositions.length === 0) {
       throw new Error('No empty positions available');
     }
 
-    // 1. 如果棋盘为空，占据天元
+    // 1. 如果棋盘为空，使用开局策略
     if (emptyPositions.length === 225) {
-      return { x: 7, y: 7 };
+      return OpeningStrategy.selectOpening();
     }
 
-    // 2. 20%概率检测对方威胁
-    const seed = customSeed ?? this.seed;
-    const defenseChance = this.seededRandom(seed);
-
-    if (defenseChance < 0.2) {
-      const defensiveMove = this.findDefensiveMove(board, player);
-      if (defensiveMove) {
-        return defensiveMove;
-      }
-    }
-
-    // 3. 80%概率随机落子（优先选择有邻居的位置）
-    return this.getRandomMove(board);
+    // 2. 使用评分系统选择最佳位置
+    return this.findBestMove(board, player, emptyPositions);
   }
 
   /**
@@ -63,128 +64,153 @@ export class SimpleAI {
   }
 
   /**
-   * 随机选择一个空位
-   * 优先选择已有棋子周围2格范围内的位置
+   * 找出最佳落子位置（使用评分系统）
    */
-  private getRandomMove(board: Board): Position {
-    const emptyPositions = this.getEmptyPositions(board);
-    const occupiedPositions = board.getOccupiedPositions();
+  private findBestMove(board: Board, player: Player, emptyPositions: Position[]): Position {
+    const opponent: Player = player === 'black' ? 'white' : 'black';
+    let bestPosition = emptyPositions[0];
+    let maxScore = -Infinity;
 
-    // 如果没有已占领的位置，返回随机空位
-    if (occupiedPositions.length === 0) {
-      const randomValue = this.seededRandom(Date.now());
-      return emptyPositions[Math.floor(randomValue * emptyPositions.length)];
+    for (const pos of emptyPositions) {
+      // 进攻分数（在该位置落子后，对自己有多大好处）
+      const attackScore = this.evaluatePosition(board, pos, player);
+
+      // 防守分数（如果不在该位置落子，对方在该位置落子后有多大威胁）
+      const defenseScore = this.evaluatePosition(board, pos, opponent);
+
+      // 总分 = 进攻分数 + 防守分数（防守权重稍高，优先生存）
+      const totalScore = attackScore + defenseScore * 1.2;
+
+      if (totalScore > maxScore) {
+        maxScore = totalScore;
+        bestPosition = pos;
+      }
     }
 
-    // 找出有邻居的空位（周围2格内有棋子）
-    const candidates = emptyPositions.filter((pos) =>
-      this.hasNeighbor(board, pos, 2, occupiedPositions)
-    );
-
-    // 如果没有候选位置，返回所有空位中的随机位置
-    const pool = candidates.length > 0 ? candidates : emptyPositions;
-    const randomValue = this.seededRandom(Date.now() + this.seed);
-    return pool[Math.floor(randomValue * pool.length)];
+    return bestPosition;
   }
 
   /**
-   * 检查位置是否有邻居
+   * 评估某个位置的分数
+   * 使用简化的棋型识别
    */
-  private hasNeighbor(
-    board: Board,
-    position: Position,
-    distance: number,
-    occupiedPositions: Position[]
-  ): boolean {
-    return occupiedPositions.some((occupied) => {
-      const dx = Math.abs(position.x - occupied.x);
-      const dy = Math.abs(position.y - occupied.y);
-      return dx <= distance && dy <= distance;
-    });
-  }
-
-  /**
-   * 基础防守：检测对方是否有活三，如果有则堵截
-   * 返回防守位置，如果没有威胁则返回null
-   */
-  private findDefensiveMove(board: Board, aiPlayer: Player): Position | null {
-    const opponent: Player = aiPlayer === 'black' ? 'white' : 'black';
+  private evaluatePosition(board: Board, position: Position, player: Player): number {
+    let totalScore = 0;
     const directions = [
-      { dx: 1, dy: 0 }, // 横向
-      { dx: 0, dy: 1 }, // 纵向
-      { dx: 1, dy: 1 }, // 主对角线
+      { dx: 1, dy: 0 },  // 横向
+      { dx: 0, dy: 1 },  // 纵向
+      { dx: 1, dy: 1 },  // 主对角线
       { dx: 1, dy: -1 }, // 副对角线
     ];
 
-    // 遍历所有对方棋子，检测是否形成活三
-    const occupiedPositions = board.getOccupiedPositions();
-    const opponentPositions = occupiedPositions.filter(
-      (pos) => board.getCell(pos.x, pos.y) === opponent
-    );
-
-    for (const pos of opponentPositions) {
-      for (const { dx, dy } of directions) {
-        const blockPositions = this.checkLiveThree(board, pos, dx, dy, opponent);
-        if (blockPositions.length > 0) {
-          // 随机选择一个堵截位置
-          return blockPositions[Math.floor(this.seededRandom(this.seed + 2) * blockPositions.length)];
-        }
-      }
+    for (const { dx, dy } of directions) {
+      const pattern = this.analyzePattern(board, position, dx, dy, player);
+      totalScore += this.scorePattern(pattern);
     }
 
-    return null;
+    return totalScore;
   }
 
   /**
-   * 检查从指定位置开始是否形成活三
-   * 返回需要堵截的位置
+   * 分析某个方向上的棋型
    */
-  private checkLiveThree(
+  private analyzePattern(
     board: Board,
-    startPos: Position,
+    position: Position,
     dx: number,
     dy: number,
     player: Player
-  ): Position[] {
-    const positions: Position[] = [startPos];
+  ): {
+    count: number;      // 连续棋子数
+    openEnds: number;   // 两端空位数
+  } {
+    let count = 1;      // 包含当前位置
+    let openEnds = 0;
 
     // 正向查找
-    for (let i = 1; i < 5; i++) {
-      const nextPos = { x: startPos.x + dx * i, y: startPos.y + dy * i };
-      if (!board.isValid(nextPos.x, nextPos.y)) break;
-      if (board.getCell(nextPos.x, nextPos.y) !== player) break;
-      positions.push(nextPos);
-    }
-
-    // 反向查找
-    for (let i = 1; i < 5; i++) {
-      const prevPos = { x: startPos.x - dx * i, y: startPos.y - dy * i };
-      if (!board.isValid(prevPos.x, prevPos.y)) break;
-      if (board.getCell(prevPos.x, prevPos.y) !== player) break;
-      positions.unshift(prevPos);
-    }
-
-    // 检查是否是活三（3个连续棋子，两端为空）
-    if (positions.length === 3) {
-      const leftPos = { x: positions[0].x - dx, y: positions[0].y - dy };
-      const rightPos = { x: positions[2].x + dx, y: positions[2].y + dy };
-
-      const leftEmpty = board.isValid(leftPos.x, leftPos.y) && board.isEmpty(leftPos.x, leftPos.y);
-      const rightEmpty = board.isValid(rightPos.x, rightPos.y) && board.isEmpty(rightPos.x, rightPos.y);
-
-      if (leftEmpty && rightEmpty) {
-        return [leftPos, rightPos];
+    let blockedForward = false;
+    for (let i = 1; i <= 4; i++) {
+      const nextPos = { x: position.x + dx * i, y: position.y + dy * i };
+      if (!board.isValid(nextPos.x, nextPos.y)) {
+        blockedForward = true;
+        break;
+      }
+      const cell = board.getCell(nextPos.x, nextPos.y);
+      if (cell === player) {
+        count++;
+      } else if (cell === null) {
+        openEnds++;
+        break;
+      } else {
+        blockedForward = true;
+        break;
       }
     }
 
-    return [];
+    // 反向查找
+    let blockedBackward = false;
+    for (let i = 1; i <= 4; i++) {
+      const prevPos = { x: position.x - dx * i, y: position.y - dy * i };
+      if (!board.isValid(prevPos.x, prevPos.y)) {
+        blockedBackward = true;
+        break;
+      }
+      const cell = board.getCell(prevPos.x, prevPos.y);
+      if (cell === player) {
+        count++;
+      } else if (cell === null) {
+        openEnds++;
+        break;
+      } else {
+        blockedBackward = true;
+        break;
+      }
+    }
+
+    return { count, openEnds };
   }
 
   /**
-   * 生成伪随机数（使用种子）
+   * 根据棋型计算分数
    */
-  private seededRandom(seed: number): number {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
+  private scorePattern(pattern: { count: number; openEnds: number }): number {
+    const { count, openEnds } = pattern;
+
+    // 连五（必胜）
+    if (count >= 5) {
+      return SCORE.FIVE;
+    }
+
+    // 活四（两端都空，4个连续棋子）
+    if (count === 4 && openEnds === 2) {
+      return SCORE.LIVE_FOUR;
+    }
+
+    // 冲四（一端被堵，4个连续棋子）
+    if (count === 4 && openEnds === 1) {
+      return SCORE.RUSH_FOUR;
+    }
+
+    // 活三（两端都空，3个连续棋子）
+    if (count === 3 && openEnds === 2) {
+      return SCORE.LIVE_THREE;
+    }
+
+    // 眠三（一端被堵，3个连续棋子）
+    if (count === 3 && openEnds === 1) {
+      return SCORE.SLEEP_THREE;
+    }
+
+    // 活二（两端都空，2个连续棋子）
+    if (count === 2 && openEnds === 2) {
+      return SCORE.LIVE_TWO;
+    }
+
+    // 单子
+    if (count === 1) {
+      return SCORE.ONE;
+    }
+
+    return 0;
   }
 }

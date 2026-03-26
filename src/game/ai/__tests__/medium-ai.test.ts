@@ -6,15 +6,23 @@
 import { describe, it, expect } from 'vitest';
 import { Board } from '../../core/board';
 import { MediumAI } from '../medium-ai';
+import { OpeningStrategy } from '../opening-strategy';
 
 describe('MediumAI', () => {
-  // TC-093: 中等AI-空棋盘天元开局
-  it('应该在天元落子（棋盘为空）', () => {
+  // TC-093: 中等AI-空棋盘开局（使用开局策略）
+  it('应该使用开局策略落子（棋盘为空）', () => {
     const board = new Board(15);
     const ai = new MediumAI();
     const move = ai.calculateMove(board, 'black');
 
-    expect(move).toEqual({ x: 7, y: 7 });
+    // 验证位置在棋盘内
+    expect(move.x).toBeGreaterThanOrEqual(0);
+    expect(move.x).toBeLessThan(15);
+    expect(move.y).toBeGreaterThanOrEqual(0);
+    expect(move.y).toBeLessThan(15);
+
+    // 验证是有效的开局位置
+    expect(OpeningStrategy.isOpeningPosition(move)).toBe(true);
   });
 
   // TC-094: 中等AI-识别并堵截活四
